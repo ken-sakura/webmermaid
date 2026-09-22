@@ -1,23 +1,8 @@
-127.0.0.1 - - [22/Sep/2026 08:55:06] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [22/Sep/2026 08:58:59] "GET / HTTP/1.1" 200 -
-^Z
-[1]+  Stopped                 python3 -m http.server
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$
-sakura@sakura:~/git/webmermaid$ cat readme.md
-cat: readme.md: No such file or directory
-sakura@sakura:~/git/webmermaid$ ls
-index.html  README.md
-sakura@sakura:~/git/webmermaid$ cat README.md
 # Mermaid to PNG Converter
 
 Mermaid 構文のダイアグラムをブラウザ上でレンダリングし、PNG 形式でダウンロードできる
 GitHub Pages などの静的ホスティング環境で、サーバー通信を行わずに完全クライアントサ
-
+[webmermaid](https://ken-sakura.github.io/webmermaid/)
 ---
 
 ## 主な特徴
