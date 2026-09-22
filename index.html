@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mermaid to PNG Converter</title>
+  <meta name="description" content="Mermaidダイアグラムをブラウザ上でレンダリングし、PNG形式でダウンロードできる完全クライアントサイドWebアプリケーション">
+  <!-- Mermaid.js v10 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #12141a;
+      --bg-panel: #1a1d24;
+      --bg-editor: #16181e;
+      --border-color: #2e3440;
+      --border-hover: #434c5e;
+      --text-main: #eceff4;
+      --text-muted: #9499a8;
+      --accent-primary: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --accent-active: #0284c7;
+      --accent-green: #10b981;
+      --accent-green-hover: #059669;
+      --color-danger: #f43f5e;
+      --color-warning: #f59e0b;
+      --preview-bg: #ffffff;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #0f172a;
+      user-select: none;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 500;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-editor);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 3px 8px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    select {
+      background: transparent;
+      color: var(--text-main);
+      border: none;
+      outline: none;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    select option {
+      background: var(--bg-panel);
+      color: var(--text-main);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn-secondary {
+      background: var(--bg-editor);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--border-hover);
+      background: #232731;
+    }
+
+    .btn-primary {
+      background: var(--accent-green);
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-green-hover);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    /* Tab bar for small screens & view switcher */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 16px;
+    }
+
+    .tab-btn {
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+
+    /* Main Content Area */
+    main {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* Terminal Editor Styling */
+    .terminal-panel {
+      background-color: var(--bg-editor);
+      border-right: 1px solid var(--border-color);
+    }
+
+    .terminal-header {
+      background-color: #1a1d24;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background-color: #ff5f56; }
+    .dot-yellow { background-color: #ffbd2e; }
+    .dot-green { background-color: #27c93f; }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    textarea#editor {
+      width: 100%;
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e2e8f0;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.6;
+      padding: 16px;
+      resize: none;
+      tab-size: 2;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    textarea#editor::placeholder {
+      color: #4b5563;
+    }
+
+    /* Error Banner */
+    .error-container {
+      display: none;
+      background: #450a0a;
+      border-top: 1px solid #7f1d1d;
+      color: #fca5a5;
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .error-container.show {
+      display: block;
+    }
+
+    /* Preview Panel */
+    .preview-panel {
+      background: #0f1117;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zoom-btn {
+      background: var(--bg-editor);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .zoom-btn:hover {
+      background: #2a2e39;
+    }
+
+    .preview-stage {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      padding: 32px;
+      background:
+        radial-gradient(circle, #2a2e3d 10%, transparent 11%);
+      background-size: 20px 20px;
+      position: relative;
+    }
+
+    .canvas-wrapper {
+      margin: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: fit-content;
+      min-height: fit-content;
+    }
+
+    .canvas-card {
+      background-color: var(--preview-bg);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+      padding: 32px;
+      min-width: 280px;
+      min-height: 160px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: top center;
+      transition: transform 0.15s ease-out;
+    }
+
+    .canvas-card svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s ease-in-out;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Responsive Mode Behaviors */
+    @media (max-width: 840px) {
+      .panel {
+        display: none;
+        width: 100%;
+      }
+      .panel.active {
+        display: flex;
+      }
+      .terminal-panel {
+        border-right: none;
+      }
+      .view-mode-desktop {
+        display: none !important;
+      }
+    }
+
+    @media (min-width: 841px) {
+      .tab-bar.desktop-split-active {
+        display: none;
+      }
+      .panel {
+        display: flex !important;
+      }
+      .panel.hidden-desktop {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">M</div>
+      <div class="brand-title">
+        Mermaid to PNG
+        <span class="brand-badge">Zero Retention</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Preset templates -->
+      <div class="control-group">
+        <label for="template-select" class="control-label">テンプレート:</label>
+        <select id="template-select">
+          <option value="architecture">処理フロー (標準)</option>
+          <option value="simple">シンプル決定木</option>
+          <option value="sequence">シーケンス図</option>
+          <option value="classDiagram">クラス図</option>
+          <option value="stateDiagram">状態遷移図</option>
+        </select>
+      </div>
+
+      <!-- Resolution Selector -->
+      <div class="control-group">
+        <label for="scale-select" class="control-label">解像度:</label>
+        <select id="scale-select">
+          <option value="1">1x (等倍)</option>
+          <option value="2" selected>2x (推奨)</option>
+          <option value="3">3x (高解像度)</option>
+        </select>
+      </div>
+
+      <!-- Reset button -->
+      <button id="btn-reset" class="btn btn-secondary" title="初期サンプルに戻す">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        初期化
+      </button>
+
+      <!-- Save PNG button -->
+      <button id="btn-download" class="btn btn-primary" title="PNG形式でダウンロード">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        PNG 保存
+      </button>
+    </div>
+  </header>
+
+  <!-- Responsive / View Mode Tab Bar -->
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" id="tab-editor" data-target="editor-panel">
+      💻 Terminal (入力)
+    </button>
+    <button class="tab-btn" id="tab-preview" data-target="preview-panel">
+      🖼️ プレビュー
+    </button>
+    <button class="tab-btn view-mode-desktop" id="tab-split" data-mode="split">
+      ⚡ 左右分割
+    </button>
+  </div>
+
+  <!-- Main View -->
+  <main id="main-container">
+    <!-- Terminal Input Panel -->
+    <section class="panel terminal-panel active" id="editor-panel">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div class="terminal-title">diagram.mmd &mdash; bash</div>
+        <div style="width: 42px;"></div>
+      </div>
+
+      <div class="editor-wrapper">
+        <textarea id="editor" spellcheck="false" placeholder="ここに Mermaid 構文を入力してください..."></textarea>
+        <div class="error-container" id="error-box"></div>
+      </div>
+    </section>
+
+    <!-- Preview Panel -->
+    <section class="panel preview-panel" id="preview-panel">
+      <div class="preview-header">
+        <div class="preview-title">リアルタイムプレビュー (白背景キャンバス)</div>
+        <div class="preview-controls">
+          <button class="zoom-btn" id="zoom-out" title="縮小">-</button>
+          <button class="zoom-btn" id="zoom-reset" title="倍率リセット">100%</button>
+          <button class="zoom-btn" id="zoom-in" title="拡大">+</button>
+        </div>
+      </div>
+
+      <div class="preview-stage" id="preview-stage">
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <div class="canvas-card" id="preview-container">
+            <!-- Rendered SVG will be placed here -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Hidden Sandbox for Mermaid rendering -->
+  <div id="mermaid-sandbox" style="display: none;"></div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Templates
+    const TEMPLATES = {
+      architecture: `flowchart TD
+    A[Mermaid 構文入力] --> B[mermaid.js]
+    B --> C[インメモリ SVG 生成]
+    C --> D["HTML5 Canvas に描画<br/>背景色を敷いて通常色を維持"]
+    D --> E[PNG Blob 生成]
+    E --> F[一時 URL 発行 & ダウンロード]
+    F --> G[Blob URL 即時破棄]`,
+
+      simple: `flowchart TD
+    Start([開始]) --> Decision{条件分岐}
+    Decision -- Yes --> Success[成功処理]
+    Decision -- No --> Retry[再試行]
+    Retry --> Decision
+    Success --> End([終了])`,
+
+      sequence: `sequenceDiagram
+    autonumber
+    actor User as ユーザー
+    participant App as WebMermaid
+    participant Engine as Mermaid.js
+    participant Canvas as HTML5 Canvas
+
+    User->>App: 構文入力
+    App->>Engine: インメモリ レンダリング
+    Engine-->>App: SVG生成
+    User->>App: 「PNG 保存」クリック
+    App->>Canvas: スケール描画
+    Canvas-->>User: PNGダウンロード`,
+
+      classDiagram: `classDiagram
+    class Application {
+      +String currentCode
+      +Number scale
+      +render()
+      +exportPNG()
+    }
+    class CanvasRasterizer {
+      +drawSvg(svg, scale)
+      +toBlob(type)
+    }
+    Application --> CanvasRasterizer : 描画委譲`,
+
+      stateDiagram: `stateDiagram-v2
+    [*] --> Idle: 初期ロード
+    Idle --> Editing: 構文入力
+    Editing --> Rendering: 300ms デバウンス
+    Rendering --> Idle: レンダリング成功
+    Rendering --> Error: 構文エラー
+    Error --> Editing: 構文修正
+    Idle --> Exporting: 保存クリック
+    Exporting --> Idle: PNG生成完了`
+    };
+
+    // DOM Elements
+    const editor = document.getElementById('editor');
+    const previewContainer = document.getElementById('preview-container');
+    const errorBox = document.getElementById('error-box');
+    const templateSelect = document.getElementById('template-select');
+    const scaleSelect = document.getElementById('scale-select');
+    const btnReset = document.getElementById('btn-reset');
+    const btnDownload = document.getElementById('btn-download');
+    const toast = document.getElementById('toast');
+
+    // Tabs
+    const tabEditor = document.getElementById('tab-editor');
+    const tabPreview = document.getElementById('tab-preview');
+    const tabSplit = document.getElementById('tab-split');
+    const editorPanel = document.getElementById('editor-panel');
+    const previewPanel = document.getElementById('preview-panel');
+
+    // Zoom
+    let currentZoom = 1;
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
+    const zoomResetBtn = document.getElementById('zoom-reset');
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+
+    function applyZoom() {
+      zoomResetBtn.textContent = `${Math.round(currentZoom * 100)}%`;
+      
+      // Modern browsers support zoom property on elements
+      if ('zoom' in document.documentElement.style) {
+        previewContainer.style.transform = 'none';
+        previewContainer.style.zoom = currentZoom;
+      } else {
+        // Fallback using transform and sizing
+        previewContainer.style.transform = `scale(${currentZoom})`;
+        previewContainer.style.transformOrigin = 'top center';
+        if (canvasWrapper) {
+          canvasWrapper.style.width = `${previewContainer.offsetWidth * currentZoom}px`;
+          canvasWrapper.style.height = `${previewContainer.offsetHeight * currentZoom}px`;
+        }
+      }
+    }
+
+    zoomInBtn.addEventListener('click', () => {
+      currentZoom = Math.min(Number((currentZoom + 0.15).toFixed(2)), 3.0);
+      applyZoom();
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      currentZoom = Math.max(Number((currentZoom - 0.15).toFixed(2)), 0.4);
+      applyZoom();
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      currentZoom = 1;
+      applyZoom();
+    });
+
+    // Optional pinch / ctrl+wheel zoom inside preview-stage
+    const previewStage = document.getElementById('preview-stage');
+    previewStage.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        currentZoom = Math.min(Math.max(Number((currentZoom + delta).toFixed(2)), 0.4), 3.0);
+        applyZoom();
+      }
+    }, { passive: false });
+
+    // Toast helper
+    let toastTimeout = null;
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      flowchart: {
+        htmlLabels: false,
+        useMaxWidth: false,
+        curve: 'basis'
+      },
+      sequence: {
+        useMaxWidth: false
+      }
+    });
+
+    // Debounce rendering
+    let renderTimer = null;
+    let renderIdCounter = 0;
+
+    async function renderDiagram() {
+      const code = editor.value.trim();
+      if (!code) {
+        previewContainer.innerHTML = '<span style="color:#94a3b8;font-size:13px;">ダイアグラムコードが空です</span>';
+        errorBox.classList.remove('show');
+        errorBox.textContent = '';
+        return;
+      }
+
+      renderIdCounter++;
+      const uniqueId = `mermaid-render-${Date.now()}-${renderIdCounter}`;
+
+      try {
+        // First validate syntax with parse to prevent corrupted DOM nodes
+        await mermaid.parse(code);
+
+        renderIdCounter++;
+        const uniqueId = `mermaid-render-${Date.now()}-${renderIdCounter}`;
+        const { svg } = await mermaid.render(uniqueId, code);
+        previewContainer.innerHTML = svg;
+        errorBox.classList.remove('show');
+        errorBox.textContent = '';
+      } catch (err) {
+        // Show error message
+        const errorMessage = err.message || err.str || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+        errorBox.textContent = `[Syntax Error]\n${errorMessage}`;
+        errorBox.classList.add('show');
+
+        // Cleanup any leftover element injected by mermaid
+        const badSvgs = document.querySelectorAll('svg[id^="dmermaid-render"], [id^="mermaid-render"]');
+        badSvgs.forEach(el => {
+          if (el.parentNode && el.parentNode !== previewContainer) {
+            el.remove();
+          }
+        });
+      }
+    }
+
+    function triggerRender() {
+      if (renderTimer) clearTimeout(renderTimer);
+      renderTimer = setTimeout(renderDiagram, 250);
+    }
+
+    // Editor Input & Tab key support
+    editor.addEventListener('input', triggerRender);
+
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + 2;
+        triggerRender();
+      }
+    });
+
+    // Template selection
+    templateSelect.addEventListener('change', (e) => {
+      const key = e.target.value;
+      if (TEMPLATES[key]) {
+        editor.value = TEMPLATES[key];
+        triggerRender();
+        showToast(`テンプレート「${e.target.options[e.target.selectedIndex].text}」を読み込みました`);
+      }
+    });
+
+    // Reset button
+    btnReset.addEventListener('click', () => {
+      const ok = confirm('初期サンプル状態へリセットしますか？\n（編集中の内容は破棄されます）');
+      if (ok) {
+        templateSelect.value = 'architecture';
+        editor.value = TEMPLATES.architecture;
+        scaleSelect.value = '2';
+        currentZoom = 1;
+        applyZoom();
+        triggerRender();
+        showToast('初期サンプル状態にリセットしました');
+      }
+    });
+
+    // PNG Export Logic
+    btnDownload.addEventListener('click', async () => {
+      const svgElement = previewContainer.querySelector('svg');
+      if (!svgElement) {
+        alert('出力可能なダイアグラムがありません。構文エラーがないか確認してください。');
+        return;
+      }
+
+      btnDownload.disabled = true;
+      const originalText = btnDownload.innerHTML;
+      btnDownload.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+          <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+        </svg>
+        生成中...
+      `;
+
+      try {
+        const scale = parseFloat(scaleSelect.value) || 2;
+
+        // Clone SVG to avoid modifying live view
+        const clonedSvg = svgElement.cloneNode(true);
+
+        // Ensure namespace
+        clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+        // Calculate dimensions
+        let width = 0;
+        let height = 0;
+
+        const viewBox = svgElement.viewBox ? svgElement.viewBox.baseVal : null;
+        if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+          width = viewBox.width;
+          height = viewBox.height;
+        } else {
+          try {
+            const bbox = svgElement.getBBox();
+            width = bbox.width;
+            height = bbox.height;
+          } catch (e) {
+            const rect = svgElement.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+          }
+        }
+
+        if (!width || !height) {
+          const rect = svgElement.getBoundingClientRect();
+          width = rect.width || 600;
+          height = rect.height || 400;
+        }
+
+        width = Math.ceil(width);
+        height = Math.ceil(height);
+
+        clonedSvg.setAttribute('width', width);
+        clonedSvg.setAttribute('height', height);
+
+        // Serialize SVG to Data URL (avoids blob URL security taint issues in canvas)
+        const serializer = new XMLSerializer();
+        let svgString = serializer.serializeToString(clonedSvg);
+
+        // Ensure proper encoding for data URL
+        const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error('SVGの読み込みに失敗しました'));
+          img.src = dataUrl;
+        });
+
+        // Render to Canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext('2d');
+
+        // Crisp rendering options
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Draw solid white background to preserve diagram visibility
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw diagram
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Convert to PNG
+        await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('PNG Blob の生成に失敗しました'));
+              return;
+            }
+
+            // Generate filename: mermaid-YYYYMMDDHHMMSS.png
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const timestamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const filename = `mermaid-${timestamp}.png`;
+
+            // Download trigger
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Zero data retention: Immediately revoke Object URL
+            setTimeout(() => {
+              URL.revokeObjectURL(downloadUrl);
+            }, 100);
+
+            showToast(`PNG画像を保存しました (${scale}x - ${canvas.width}x${canvas.height})`);
+            resolve();
+          }, 'image/png');
+        });
+
+      } catch (error) {
+        console.error(error);
+        alert('PNG出力中にエラーが発生しました: ' + error.message);
+        btnDownload.disabled = false;
+        btnDownload.innerHTML = originalText;
+      }
+    });
+
+    // Tab Switching for Responsive / Mobile & Desktop
+    let isDesktop = window.innerWidth > 840;
+    let desktopSplit = true;
+
+    function updateLayout() {
+      isDesktop = window.innerWidth > 840;
+      const tabBar = document.getElementById('tab-bar');
+
+      if (isDesktop && desktopSplit) {
+        tabBar.classList.add('desktop-split-active');
+        editorPanel.classList.remove('hidden-desktop');
+        previewPanel.classList.remove('hidden-desktop');
+        editorPanel.classList.add('active');
+        previewPanel.classList.add('active');
+        tabSplit.classList.add('active');
+        tabEditor.classList.remove('active');
+        tabPreview.classList.remove('active');
+      } else {
+        tabBar.classList.remove('desktop-split-active');
+        if (tabEditor.classList.contains('active')) {
+          editorPanel.classList.add('active');
+          editorPanel.classList.remove('hidden-desktop');
+          previewPanel.classList.remove('active');
+          previewPanel.classList.add('hidden-desktop');
+        } else {
+          previewPanel.classList.add('active');
+          previewPanel.classList.remove('hidden-desktop');
+          editorPanel.classList.remove('active');
+          editorPanel.classList.add('hidden-desktop');
+        }
+      }
+    }
+
+    tabEditor.addEventListener('click', () => {
+      desktopSplit = false;
+      tabEditor.classList.add('active');
+      tabPreview.classList.remove('active');
+      tabSplit.classList.remove('active');
+      updateLayout();
+    });
+
+    tabPreview.addEventListener('click', () => {
+      desktopSplit = false;
+      tabPreview.classList.add('active');
+      tabEditor.classList.remove('active');
+      tabSplit.classList.remove('active');
+      updateLayout();
+    });
+
+    tabSplit.addEventListener('click', () => {
+      desktopSplit = true;
+      updateLayout();
+    });
+
+    window.addEventListener('resize', updateLayout);
+
+    // Initial load
+    editor.value = TEMPLATES.architecture;
+    updateLayout();
+    applyZoom();
+    renderDiagram();
+  </script>
+
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</body>
+</html>
